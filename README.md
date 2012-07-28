@@ -29,8 +29,8 @@ parser [path-to-serial-dump-file] [path-to-desired-gif-location]
 Where the serial dump is a binary dump of the output over serial, and the
 desired gif location is where you would like 
 
-Note: You may need to create a bin/ and obj/ directory in the root of this
-project in order for it to compile, as they are in the gitignore.
+Note: compilation has not been tested on Windows, but it ought to work if you
+can get the dependencies worked out.
 
 Dependencies
 ------------
