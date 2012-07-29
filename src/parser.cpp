@@ -31,9 +31,10 @@ using namespace cv;
 const static unsigned char HEADER[] = { 0x01, 0x02, 0x03, 0x04 };
 const static unsigned char FOOTER[] = { 0x40, 0x30, 0x20, 0x10 };
 
-parser::parser(const char *name, bool gui, int delayTime) : m_name(name) {
+parser::parser(const char *name, bool gui, bool verbose, int delayTime) : m_name(name) {
     m_gui_running = gui;
     m_delay_time = delayTime;
+    m_verbose = verbose;
     if (m_gui_running) {
         namedWindow(name, CV_WINDOW_AUTOSIZE);
     }
@@ -47,6 +48,10 @@ parser::~parser() {
 
 void parser::setGui(bool gui) {
     m_gui_running = gui;
+}
+
+void parser::setVerbose(bool verbose) {
+    m_verbose = verbose;
 }
 
 void parser::update(char c) {
@@ -103,13 +108,13 @@ int parser::construct_int(int pos) {
 
 void parser::processMsg() {
     // verify header
-    if (!is_header(3)) {
+    if (!is_header(3) && m_verbose) {
         cerr << "ERRROR: Header does not match" << endl;
         return;
     }
 
     // verify footer
-    if (!is_footer(m_buf.size() - 1)) {
+    if (!is_footer(m_buf.size() - 1) && m_verbose) {
         cerr << "ERROR: Footer does not match" << endl;
         return;
     }
@@ -123,7 +128,7 @@ void parser::processMsg() {
         case TEXT:
         case LASER:
         case MAP:
-            if (!m_gui_running) {
+            if (m_verbose) {
                 cout << seq << " (" << timestamp << "):\ttype: " << type << "\t";
             }
             break;
@@ -148,7 +153,7 @@ void parser::processText() {
     long string_length = construct_long(STR_LEN);
     unsigned char *text_buf = new unsigned char[string_length + 1];
 
-    if (!m_gui_running) {
+    if (m_verbose) {
         cout << "(text, " << string_length << " bytes): ";
     }
 
@@ -157,9 +162,7 @@ void parser::processText() {
     }
     text_buf[string_length] = '\0';
 
-    if (!m_gui_running) {
-        cout << text_buf << endl;
-    }
+    cout << text_buf << endl;
 
     delete[] text_buf;
 }
@@ -198,7 +201,7 @@ void parser::writeMap(const char *filename) {
 void parser::processLaser() {
     long index = construct_long(LSR_INDEX);
     
-    if (!m_gui_running) {
+    if (m_verbose) {
         cout << "(laser, " << index << " deg): " ;
     }
 
@@ -206,12 +209,12 @@ void parser::processLaser() {
         double x = construct_int(LSR_DATA + 4 * i);
         double y = construct_int(LSR_DATA + 4 * i + 2);
         double dist = sqrt(x * x + y * y);
-        if (!m_gui_running) {
+        if (m_verbose) {
             cout << dist << ", ";
         }
     }
     
-    if (!m_gui_running) {
+    if (m_verbose) {
         cout << endl;
     }
 }
