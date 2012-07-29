@@ -24,13 +24,15 @@ Usage
 Clone the repository, run make. When complete, there should be a program
 "parser" in the bin directory, it has arguments as follows:
 
-parser [path-to-serial-dump-file] [path-to-desired-gif-location]
+    `parser [-c] -f dumpfile [-g gifname]`
+    `parser [-c] -p serialport [-g gifname]`
 
 Where the serial dump is a binary dump of the output over serial, and the
-desired gif location is where you would like 
+desired gif location is where you would like the gif of the map images to be
+placed. 
 
-Note: compilation has not been tested on Windows, but it ought to work if you
-can get the dependencies worked out.
+Serial ports are not currently supported, but they're a goal of this project
+nevertheless.
 
 Dependencies
 ------------
@@ -39,6 +41,12 @@ Magick++
 Install on Ubuntu with
 
 `sudo apt-get install libmagick++-dev libmagick++4`
+
+OpenCV
+
+This code has been tested with the OpenCV libraries available in the ROS Fuerte
+repository; however, any fairly recent version of OpenCV ought to work (ie
+version 2.0+)
 
 Special thanks
 --------------

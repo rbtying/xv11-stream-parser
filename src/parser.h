@@ -1,9 +1,27 @@
+/*
+ * This file is part of XV-11 Parser
+ *
+ * XV-11 Parser is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Foobar is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #ifndef PARSER_H_
 
 #include <vector>
 #include <Magick++.h>
 
 using std::vector;
+using std::string;
 using Magick::Image;
 
 class parser {
@@ -11,8 +29,10 @@ class parser {
 public:
     /*!
      * Constructs a parser object
+     * @param name Name of the window
+     * @param gui whether or not to show a GUI
      */
-    parser();
+    parser(const char *name, bool gui = true, int delayTime = 1);
 
     /*!
      * Destructs a parser object
@@ -107,6 +127,10 @@ private:
     char m_img[65536];
     vector<Image> m_images;
     vector<unsigned char> m_buf;
+    string m_name;
+
+    bool m_gui_running;
+    int m_delay_time;
 };
 
 #endif /* PARSER_H_ */

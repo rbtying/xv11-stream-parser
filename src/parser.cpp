@@ -1,3 +1,20 @@
+/*
+ * This file is part of XV-11 Parser
+ *
+ * XV-11 Parser is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Foobar is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include "parser.h"
 #include <iostream>
 #include <fstream>
@@ -14,10 +31,18 @@ using namespace cv;
 const static unsigned char HEADER[] = { 0x01, 0x02, 0x03, 0x04 };
 const static unsigned char FOOTER[] = { 0x40, 0x30, 0x20, 0x10 };
 
-parser::parser() {
+parser::parser(const char *name, bool gui, int delayTime) : m_name(name) {
+    m_gui_running = gui;
+    m_delay_time = delayTime;
+    if (m_gui_running) {
+        namedWindow(name, CV_WINDOW_AUTOSIZE);
+    }
 }
 
 parser::~parser() {
+    if (m_gui_running) {
+
+    }
 }
 
 void parser::update(char c) {
@@ -94,7 +119,9 @@ void parser::processMsg() {
         case TEXT:
         case LASER:
         case MAP:
-            cout << seq << " (" << timestamp << "):\ttype: " << type << "\t";
+            if (!m_gui_running) {
+                cout << seq << " (" << timestamp << "):\ttype: " << type << "\t";
+            }
             break;
     }
     switch(type) {
@@ -115,14 +142,20 @@ void parser::processMsg() {
 
 void parser::processText() {
     long string_length = construct_long(STR_LEN);
-    cout << "(text, " << string_length << " bytes): ";
     unsigned char *text_buf = new unsigned char[string_length + 1];
+
+    if (!m_gui_running) {
+        cout << "(text, " << string_length << " bytes): ";
+    }
 
     for (int i = 0; i < string_length; i++) {
         text_buf[i] = m_buf[STR_DATA + i];
     }
     text_buf[string_length] = '\0';
-    cout << text_buf << endl;
+
+    if (!m_gui_running) {
+        cout << text_buf << endl;
+    }
 
     delete[] text_buf;
 }
@@ -135,7 +168,15 @@ void parser::processMap() {
     // edit data with new input
     long size = construct_long(MAP_SIZE);
     long address = construct_long(MAP_ADDR);
+
     copy(m_buf.begin() + MAP_DATA, m_buf.begin() + MAP_DATA + size, m_img + address);
+
+    if (m_gui_running) {
+        Mat img(256, 256, CV_8UC1);
+        copy(m_img, m_img + 65536, img.data);
+        imshow(m_name, img);
+        waitKey(m_delay_time);
+    }
 
     Image temp(Geometry(256, 256), Color(0, 0, 0, 0));
 
@@ -152,12 +193,21 @@ void parser::writeMap(const char *filename) {
 
 void parser::processLaser() {
     long index = construct_long(LSR_INDEX);
-    cout << "(laser, " << index << " deg): " ;
+    
+    if (!m_gui_running) {
+        cout << "(laser, " << index << " deg): " ;
+    }
+
     for (int i = 0; i < 90; i++) {
         double x = construct_int(LSR_DATA + 4 * i);
         double y = construct_int(LSR_DATA + 4 * i + 2);
         double dist = sqrt(x * x + y * y);
-        cout << dist << ", ";
+        if (!m_gui_running) {
+            cout << dist << ", ";
+        }
     }
-    cout << endl;
+    
+    if (!m_gui_running) {
+        cout << endl;
+    }
 }
