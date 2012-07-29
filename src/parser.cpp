@@ -45,6 +45,10 @@ parser::~parser() {
     }
 }
 
+void parser::setGui(bool gui) {
+    m_gui_running = gui;
+}
+
 void parser::update(char c) {
     m_buf.push_back(c); // store the character
 

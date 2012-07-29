@@ -40,6 +40,12 @@ public:
     virtual ~parser();
 
     /*!
+     * Determines whether or not to use a gui
+     * @param gui use a gui
+     */
+    void setGui(bool gui = true);
+
+    /*!
      * Call with new characters to get them parsed
      * @param c character to parse
      */

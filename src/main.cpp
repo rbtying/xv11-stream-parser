@@ -19,6 +19,10 @@
 #include <fstream>
 #include <vector>
 #include <unistd.h>
+#include <termios.h>
+#include <signal.h>
+#include <fcntl.h>
+#include <string.h>
 #include "parser.h"
 
 using namespace std;
@@ -31,6 +35,10 @@ struct args_t {
 } args;
 
 static const char *optstring = "cf:p:g:h?";
+    
+parser p("XV-11 Parser", false); 
+
+int done = 0;
 
 void displayUsage() {
     cout << "XV-11 Parser v0.1" << endl;
@@ -48,6 +56,10 @@ void displayUsage() {
     cout << "\t-g\t\tPath to save gif to" << endl;
     cout << "\t-h\t\tDisplay usage" << endl;
     cout << endl;
+}
+
+void term(int signum) {
+    done = 1;
 }
 
 int main (int argc, char** argv) {
@@ -91,7 +103,7 @@ int main (int argc, char** argv) {
         return 1;
     }
 
-    parser p("XV-11 Parser", !args.cli); 
+    p.setGui(!args.cli);
 
     if (args.cli) {
         cout << "Running in command line mode" << endl;
@@ -99,9 +111,44 @@ int main (int argc, char** argv) {
         cout << "Running in gui mode" << endl;
     }
 
+    // override sigint (ctrl-c)
+    signal(SIGINT, term);
+
     if (args.serialport) {
-        cerr << "Serial ports not yet supported" << endl;
-        return 1;
+        struct termios tty_opt;
+        int tty_fd;
+
+        cerr << "Serial ports not yet supported, use at your own risk" << endl;
+
+        cout << "Opening serial port " << args.serialport << endl;
+        tty_fd = open(args.serialport, O_RDWR | O_NONBLOCK);
+        if (tty_fd < 0) {
+            cerr << "Could not open port " << args.serialport << endl;
+            return 1;
+        }
+
+        memset(&tty_opt, 0, sizeof(tty_opt));
+        
+        tty_opt.c_cflag = CS8 | CLOCAL | CREAD; // 8N1
+        tty_opt.c_iflag = 0;
+        tty_opt.c_oflag = 0;
+        tty_opt.c_lflag = 0; // noncanonical mode
+        tty_opt.c_cc[VMIN] = 1; // one char is enough
+        tty_opt.c_cc[VTIME] = 0; // no timer
+
+        cfsetospeed(&tty_opt, B115200); // 115200 baud
+        cfsetispeed(&tty_opt, B115200); // 115200 baud
+
+        tcsetattr(tty_fd, TCSANOW, &tty_opt);
+
+        while (!done) {
+            unsigned char c;
+            if (read(tty_fd, &c, 1) > 0) {
+                p.update(c);
+            }      
+        }
+        close(tty_fd);
+
     } else if (args.filename) {
         cout << "Opening input file " << args.filename << endl;
         ifstream file(args.filename, ios::in | ios::binary | ios::ate);
@@ -112,7 +159,7 @@ int main (int argc, char** argv) {
 
             // simulating serial input here
             cout << "Iterating through chars" << endl;
-            for (int index = 0; index < size; index++) {
+            for (int index = 0; index < size && !done; index++) {
                 char c;
                 file.read(&c, 1); // c now has new char
                 p.update(c);
