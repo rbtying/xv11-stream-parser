@@ -35,6 +35,8 @@ struct args_t {
 } args;
 
 static const char *optstring = "cf:p:g:h?";
+
+static const char *activation_cmd = "SetStreamFormat packet\r\n";
     
 parser p("XV-11 Parser", false); 
 
@@ -88,19 +90,19 @@ int main (int argc, char** argv) {
             case 'h':
             case '?':
                 displayUsage();
-                return 1;
+                return -1;
                 break;
         }
     }
 
     if (args.filename && args.serialport) {
         cerr << "You can supply a path to a serial dump file OR a path to a serial port, not both" << endl;
-        return 1;
+        return -1;
     }
 
     if (!args.filename && !args.serialport) {
         displayUsage();
-        return 1;
+        return -1;
     }
 
     p.setGui(!args.cli);
@@ -124,7 +126,7 @@ int main (int argc, char** argv) {
         tty_fd = open(args.serialport, O_RDWR | O_NONBLOCK);
         if (tty_fd < 0) {
             cerr << "Could not open port " << args.serialport << endl;
-            return 1;
+            return -1;
         }
 
         memset(&tty_opt, 0, sizeof(tty_opt));
@@ -141,13 +143,18 @@ int main (int argc, char** argv) {
 
         tcsetattr(tty_fd, TCSANOW, &tty_opt);
 
-        while (!done) {
-            unsigned char c;
-            if (read(tty_fd, &c, 1) > 0) {
-                p.update(c);
-            }      
+        if (write(tty_fd, activation_cmd, strlen(activation_cmd))) {
+            while (!done) {
+                unsigned char c;
+                if (read(tty_fd, &c, 1) > 0) {
+                    p.update(c);
+                }      
+            }
+            close(tty_fd);
+        } else {
+            cerr << "Couldn't write activation command" << endl;
+            return -1;
         }
-        close(tty_fd);
 
     } else if (args.filename) {
         cout << "Opening input file " << args.filename << endl;
@@ -167,7 +174,7 @@ int main (int argc, char** argv) {
             file.close();
         } else {
             cerr << "Could not open file " << args.filename << endl;
-            return 1;
+            return -1;
         }
     }
 
