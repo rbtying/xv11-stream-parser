@@ -24,8 +24,8 @@ Usage
 Clone the repository, run make. When complete, there should be a program
 "parser" in the bin directory, it has arguments as follows:
 
-    `parser [-c] -f dumpfile [-g gifname]`
-    `parser [-c] -p serialport [-g gifname]`
+    parser [-c] -f dumpfile [-g gifname]
+    parser [-c] -p serialport [-g gifname]
 
 Where the serial dump is a binary dump of the output over serial, and the
 desired gif location is where you would like the gif of the map images to be
