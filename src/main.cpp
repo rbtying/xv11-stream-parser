@@ -6,6 +6,7 @@
 using namespace std;
 
 int main (int argc, char** argv) {
+    parser p;
 
     if (argc > 1) {
         cout << "Opening input file " << argv[1] << endl;
@@ -20,12 +21,12 @@ int main (int argc, char** argv) {
             for (int index = 0; index < size; index++) {
                 char c;
                 file.read(&c, 1); // c now has new char
-                parser::update(c);
+                p.update(c);
             }
             file.close();
 
             if (argc > 2) {
-                parser::writeMap(argv[2]);
+                p.writeMap(argv[2]);
             } else {
                 cerr << "Supply second parameter if you want the gif" << endl;
             }
