@@ -19,10 +19,13 @@
 
 #include <vector>
 #include <Magick++.h>
+#include <opencv2/core/core.hpp>
 
 using std::vector;
 using std::string;
 using Magick::Image;
+using cv::Mat;
+using cv::Point;
 
 class parser {
 /* public functions */
@@ -85,6 +88,11 @@ private:
     void processMsg();
 
     /*!
+     * Processes an odometry message
+     */
+    void processOdom();
+
+    /*!
      * Processes a text message
      */
     void processText();
@@ -113,6 +121,36 @@ private:
      */
     int construct_int(int pos);
 
+    /*!
+     * Checks if a point is in bounds
+     * @param mat the matrix to check with
+     * @param x the x-coordinate
+     * @param y the y-coordinate
+     * @return true if in bounds
+     */
+    bool inBounds(const Mat& mat, int x, int y);
+
+    /*!
+     * Shifts and scales a point to fit into the matrix
+     * @param mat the matrix to fit into
+     * @param point the point to shift/scale
+     * @param min minimum values of original point
+     * @param max maximum values of original point
+     * @return the scaled point, or (-32767, -32767) if point is out of range.
+     */
+    Point convertPoint(const Mat& mat, const Point& pt, const Point& min, const Point& max);
+
+    /*!
+     * Finds the intersection of the line p1p2 and p3p4
+     * @param p1 point 1 of one line
+     * @param p2 point 2 of the first line
+     * @param p3 point 1 of second line
+     * @param p4 point 2 of the second line
+     * @return intersection of the points, or (-32767, -32767) if there is no
+     * intersection
+     */
+    Point intersection(const Point& p1, const Point& p2, const Point& p3, const Point& p4);
+
     enum MSG_PKT {
         HEAD        = 0x00,
         TYPE        = 0x04,
@@ -128,12 +166,14 @@ private:
         MAP_SIZE    = 0x0c,
         MAP_ADDR    = 0x10,
         MAP_DATA    = 0x18,
+        /* odom */
     };
 
     enum MSG_TYPES {
-        LASER = 0x05,
-        MAP = 0x09,
-        TEXT = 0x11,
+        POSITION    = 0x01,
+        LASER       = 0x05,
+        MAP         = 0x09,
+        TEXT        = 0x11,
     };
 
     char m_img[65536];
@@ -144,11 +184,19 @@ private:
     bool m_gui_running;
 
     struct laser_unit {
-        int x;
-        int y;
+        Point pt;
+        bool valid;
     };
 
     struct laser_unit m_laser[360];
+
+    struct odom_data {
+        double count;
+        double speed;
+    };
+
+    struct odom_data left;
+    struct odom_data right;
 
 public:
     enum VERBOSITY_LVL {
@@ -156,6 +204,7 @@ public:
         VERB_TEXT   = (1 << 1),
         VERB_LASER  = (1 << 2),
         VERB_MAP    = (1 << 3),
+        VERB_ODOM   = (1 << 4),
     };
 private:
 

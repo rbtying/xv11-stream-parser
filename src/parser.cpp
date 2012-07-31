@@ -110,6 +110,40 @@ int parser::construct_int(int pos) {
     return tmp;
 }
 
+bool parser::inBounds(const Mat& mat, int x, int y) {
+    return x >= 0 && y >= 0 && x < mat.cols && y < mat.rows;
+}
+
+Point parser::convertPoint(const Mat& mat, const Point& pt, const Point& min, const Point& max) {
+    Point out;
+
+    double xScale = (max.x - min.x) * 1.0 / mat.cols;
+    double yScale = (max.y - min.y) * 1.0 / mat.rows;
+
+    out.x = (pt.x - (max.x + min.x) / xScale + mat.cols) / 2;
+    out.y = (pt.y - (max.y + min.y) / yScale + mat.cols) / 2;
+
+    if (inBounds(mat, out.x, out.y)) {
+        return out;
+    } else {
+        return Point(-32767, -32767);
+    }
+}
+
+Point parser::intersection(const Point& p1, const Point& p2, const Point& p3, const Point& p4) {
+    double m1 = (p2.y - p1.y) * 1.0 / (p2.x - p1.x);
+    double m2 = (p4.y - p3.y) * 1.0 / (p4.x - p3.x);
+
+    if (m1 == m2) {
+        return Point(-32767, -32767);
+    }
+
+    double x = (p1.y - p3.y + p3.x * m2 - p1.x * m1) / (m2 - m1);
+    double y = m1 * (x - p1.x) + p1.y;
+   
+    return Point(x, y);
+}
+
 void parser::processMsg() {
     // verify header
     if (!is_header(3) && (m_verbose & VERB_DEBUG)) {
@@ -124,15 +158,18 @@ void parser::processMsg() {
     }
 
     // sequence number (increment by one per message)
-    long timestamp = construct_long(TIMESTAMP);
+    unsigned long timestamp = construct_long(TIMESTAMP);
     unsigned int seq = construct_int(SEQUENCE);
     int type = construct_int(TYPE);
     
     if (m_verbose & VERB_DEBUG) {
-        cout << seq << " (" << timestamp << "):\ttype: " << type << "\t";
+        cout << seq << " (" << timestamp << ")\ttype: " << type << "\t\t";
     }
 
     switch(type) {
+        case POSITION:
+            processOdom();
+            break;
         case TEXT:
             processText();
             break;
@@ -148,6 +185,32 @@ void parser::processMsg() {
     }
 
     if (m_verbose & VERB_DEBUG) {
+        cout << endl;
+    }
+}
+
+void parser::processOdom() {
+    if (m_verbose & (VERB_ODOM)) {
+        cout << "(odom, " << (m_buf.size() - 0x0c - 4) << " bytes)\t";
+        // for (int i = 0; i < m_buf.size() - 0x0c - 4; i++) {
+        //     cout << "0x" << hex << static_cast<int>(m_buf[0x0c + i]) << dec << ", ";
+        // }
+        // cout << endl;
+        // odom_data pleft, pright;
+        // pleft.count = left.count;
+        // pleft.speed = left.speed;
+        // pright.count = right.count;
+        // pright.speed = right.speed;
+        // 
+        // left.count = construct_long(0x0c); // maybe encoder counts?
+        // right.count = construct_long(0x10); // maybe encoder counts?
+        // long noclue = construct_long(0x18); // constant at 32000 no clue what this is
+        // left.speed = construct_int(0x14) * 0.001; // maybe encoder count rate?
+        // right.speed = construct_int(0x16) * 0.001; // maybe encoder count rate?
+
+        // /* cout << ldata[0] << "\t" << ldata[1] << "\t" << idata[0] << "\t" << idata[1] << "\t" << ldata[2]; */
+
+        // cout << left.count - pleft.count << "\t" << left.speed << "\t" << right.count - pright.count << "\t" << right.speed;
         cout << endl;
     }
 }
@@ -184,8 +247,8 @@ void parser::processMap() {
     long size = construct_long(MAP_SIZE);
     long address = construct_long(MAP_ADDR);
 
-    if (m_verbose & VERB_MAP || m_verbose & VERB_DEBUG) {
-        cout << "\t(map, " << size << " bytes at 0x" << hex <<  address << dec << ")" << endl;
+    if (m_verbose & (VERB_MAP | VERB_DEBUG)) {
+        cout << "(map, " << size << " bytes at 0x" << hex <<  address << dec << ")" << endl;
     }
 
     copy(m_buf.begin() + MAP_DATA, m_buf.begin() + MAP_DATA + size, m_img + address);
@@ -213,39 +276,106 @@ void parser::writeMap(const char *filename) {
 void parser::processLaser() {
     long index = construct_long(LSR_INDEX);
     
-    if (m_verbose & VERB_LASER) {
-        cout << "(laser, " << index << " deg): " ;
+    if (m_verbose & (VERB_LASER | VERB_DEBUG)) {
+        cout << "(laser, " << index << " deg)\t";
     }
 
     for (int i = 0; i < 90; i++) {
-        laser_unit *pt = &m_laser[index + i];
-        pt->x = construct_int(LSR_DATA + 4 * i);
-        pt->y = construct_int(LSR_DATA + 4 * i + 2);
+        laser_unit *u = &m_laser[index + i];
+        u->pt.x = construct_int(LSR_DATA + 4 * i);
+        u->pt.y = construct_int(LSR_DATA + 4 * i + 2);
+        u->valid = abs(u->pt.x) < 32767 && abs(u->pt.y) < 32767;
         if (m_verbose & VERB_LASER) {
             if (m_verbose & VERB_DEBUG) {
-                if (pt->x < 32767 && pt->y < 32767) {
-                    cout << "(" << pt->x << ", " << pt->y << ")" << endl;
+                if (u->valid) {
+                    cout << "(" << u->pt.x << ", " << u->pt.y << ")" << endl;
                 } else {
                     cout << "Out of range" << endl;
                 }
             }
         }
     }
-    if (m_gui_running && index == 270) {
-        Mat img = Mat::zeros(512, 512, CV_8UC1);
+    if (index == 270) {
+        Mat img = Mat::zeros(512, 512, CV_8UC3);
+        Point min(-512, -512);
+        Point max(512, 512);
         for (int i = 0; i < 360; i++) {
-            if (m_laser[i].x < 32767 && m_laser[i].y < 32767) { 
+            if (m_laser[i].valid) { 
                 // point is in range 
-                int x = (m_laser[i].x / 2) + 256;
-                int y = (m_laser[i].y / 2) + 256;
+                Point sc = convertPoint(img, m_laser[i].pt, min, max);
 
-                if (x >= 0 && x < 512 && y >= 0 && y < 512) {
-                    img.data[x + y * 512] = 0xff;
+                if (inBounds(img, sc.x, sc.y)) {
+                    for (int j = -1; j <= 1; j++) {
+                        for (int k = -1; k <= 1; k++) {
+                            if (inBounds(img, sc.x + j, sc.y + k) && (j != k)) {
+                                img.at<Vec3b>(sc.y + k, sc.x + j)[2] = 0xff;
+                            }
+                        }
+                    }
+                    img.at<Vec3b>(sc.y, sc.x)[2] = 0xff;
+
                 }
             }
         }
-        imshow("Laser", img);
-        waitKey(m_delay_time);
+
+        vector<Point> intersections;
+
+        for (int i = 0; i < 180; i++) {
+            // draw lines
+            // only need to draw for points 0-179 b/c they're drawn to
+            // opposing point. Also draw less lines to make it easier to
+            // see
+            Point sc[4];
+            bool invalid = false;
+            for (int j = 0; j < 4; j++) {
+                if (m_laser[i + j * 90].valid) {
+                    sc[j] = convertPoint(img, m_laser[i + j * 90].pt, min, max);
+                } else {
+                    invalid = true;
+                }
+            }
+
+            if (invalid) {
+                continue;
+            }
+
+            for (int j = 0; j < 2; j++) {
+                if (inBounds(img, sc[j].x, sc[j].y) && inBounds(img, sc[j + 2].x, sc[j + 2].y)) {
+                    line(img, sc[j], sc[j + 2], CV_RGB(0, 255, 0));
+                }
+            }
+            // poor man's method of finding the center
+            intersections.push_back(intersection(sc[0], sc[2], sc[1], sc[3]));
+        }
+
+        // average the various intersections
+        Point center;
+        if (intersections.size()) {
+            for (unsigned int i = 0; i < intersections.size(); i++) {
+                center.x += intersections[i].x;
+                center.y += intersections[i].y;
+            }
+            center.x /= intersections.size();
+            center.y /= intersections.size();
+            
+            // this is rather suboptimal =(
+            if (m_verbose & VERB_LASER) {
+                cout << "Intersection: " << center;
+            }
+
+            for (int j = -5; j <= 5; j++) {
+                for (int k = -5; k <= 5; k++) {
+                    if (inBounds(img, center.x + j, center.y + k)) {
+                        img.at<Vec3b>(center.y + k, center.x + j)[0] = 0xff;
+                    }
+                }
+            }
+        }
+
+        if (m_gui_running) {
+            imshow("Laser", img);
+            waitKey(m_delay_time);
+        }
     }
     
     if (m_verbose & VERB_LASER) {

@@ -33,18 +33,19 @@ struct args_t {
     bool laser;         // true if -l is present
     bool text;          // true if -t is present
     bool map;           // true if -m is present
+    bool odom;          // true if -o is present
     char *filename;     // path to dump file (-f)
     char *serialport;   // path to serial port (-p)
     char *gifname;      // path to save gif (-g)
 } args;
 
-static const char *optstring = "cvltmf:p:g:h?";
+static const char *optstring = "cvltmof:p:g:h?";
 
 static const char *activation_cmd = "SetStreamFormat packet\r\n";
     
 parser p("XV-11 Parser", false); 
 
-int done = 0;
+bool done = false;
 
 void displayUsage() {
     cout << "XV-11 Parser v0.1" << endl;
@@ -61,6 +62,7 @@ void displayUsage() {
     cout << "\t-l\t\tLaser messages printed to stdout" << endl;
     cout << "\t-t\t\tText messages printed to stdout" << endl;
     cout << "\t-m\t\tMap messages printed to stdout" << endl;
+    cout << "\t-o\t\tOdometry messages printed to stdout" << endl;
     cout << "\t-f\t\tPath to serial dump file" << endl;
     cout << "\t-p\t\tSerial device name" << endl;
     cout << "\t-g\t\tPath to save gif to" << endl;
@@ -69,7 +71,7 @@ void displayUsage() {
 }
 
 void term(int signum) {
-    done = 1;
+    done = true;
 }
 
 int main (int argc, char** argv) {
@@ -80,6 +82,7 @@ int main (int argc, char** argv) {
     args.laser = false;
     args.text = false;
     args.map = false;
+    args.odom = false;
     args.verbose = false;
 
     char c;
@@ -98,6 +101,9 @@ int main (int argc, char** argv) {
                 break;
             case 't':
                 args.text = true;
+                break;
+            case 'o':
+                args.odom = true;
                 break;
             case 'm':
                 args.map = true;
@@ -135,7 +141,8 @@ int main (int argc, char** argv) {
     verbosity |= (args.verbose ? parser::VERB_DEBUG : 0)
         | (args.laser ? parser::VERB_LASER : 0)
         | (args.text ? parser::VERB_TEXT : 0)
-        | (args.map ? parser::VERB_MAP : 0);
+        | (args.map ? parser::VERB_MAP : 0)
+        | (args.odom ? parser::VERB_ODOM : 0);
     p.setVerbosity(verbosity);
 
     if (args.cli) {
