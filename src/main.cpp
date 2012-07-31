@@ -203,6 +203,13 @@ int main (int argc, char** argv) {
                 p.update(c);
             }
             file.close();
+
+            if (!args.cli) {
+                cout << "Ctrl-C to exit" << endl;
+                while (!done) {
+                    usleep(1000);
+                }
+            }
         } else {
             cerr << "Could not open file " << args.filename << endl;
             return -1;

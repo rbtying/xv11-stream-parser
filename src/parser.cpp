@@ -37,6 +37,10 @@ parser::parser(const char *name, bool gui, int delayTime) : m_name(name) {
     m_verbose = 0;
     if (m_gui_running) {
         namedWindow(name, CV_WINDOW_AUTOSIZE);
+        namedWindow("Laser", CV_WINDOW_AUTOSIZE);
+        Mat img = Mat::zeros(512, 512, CV_8UC1);
+        imshow("Laser", img);
+        moveWindow("Laser", 512, 0);
     }
 }
 
@@ -121,7 +125,7 @@ void parser::processMsg() {
 
     // sequence number (increment by one per message)
     long timestamp = construct_long(TIMESTAMP);
-    int seq = construct_int(SEQUENCE);
+    unsigned int seq = construct_int(SEQUENCE);
     int type = construct_int(TYPE);
     
     if (m_verbose & VERB_DEBUG) {
@@ -214,16 +218,34 @@ void parser::processLaser() {
     }
 
     for (int i = 0; i < 90; i++) {
-        double x = construct_int(LSR_DATA + 4 * i);
-        double y = construct_int(LSR_DATA + 4 * i + 2);
-        double dist = sqrt(x * x + y * y);
+        laser_unit *pt = &m_laser[index + i];
+        pt->x = construct_int(LSR_DATA + 4 * i);
+        pt->y = construct_int(LSR_DATA + 4 * i + 2);
         if (m_verbose & VERB_LASER) {
             if (m_verbose & VERB_DEBUG) {
-                cout << "(" << x << ", " << y << ", " << dist << ")" << endl;
-            } else {
-                cout << dist << ", ";
+                if (pt->x < 32767 && pt->y < 32767) {
+                    cout << "(" << pt->x << ", " << pt->y << ")" << endl;
+                } else {
+                    cout << "Out of range" << endl;
+                }
             }
         }
+    }
+    if (m_gui_running && index == 270) {
+        Mat img = Mat::zeros(512, 512, CV_8UC1);
+        for (int i = 0; i < 360; i++) {
+            if (m_laser[i].x < 32767 && m_laser[i].y < 32767) { 
+                // point is in range 
+                int x = (m_laser[i].x / 2) + 256;
+                int y = (m_laser[i].y / 2) + 256;
+
+                if (x >= 0 && x < 512 && y >= 0 && y < 512) {
+                    img.data[x + y * 512] = 0xff;
+                }
+            }
+        }
+        imshow("Laser", img);
+        waitKey(m_delay_time);
     }
     
     if (m_verbose & VERB_LASER) {

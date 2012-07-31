@@ -143,6 +143,13 @@ private:
 
     bool m_gui_running;
 
+    struct laser_unit {
+        int x;
+        int y;
+    };
+
+    struct laser_unit m_laser[360];
+
 public:
     enum VERBOSITY_LVL {
         VERB_DEBUG  = (1 << 0),
