@@ -32,7 +32,7 @@ public:
      * @param name Name of the window
      * @param gui whether or not to show a GUI
      */
-    parser(const char *name, bool gui = true, bool verbose = false, int delayTime = 1);
+    parser(const char *name, bool gui = true, int delayTime = 1);
 
     /*!
      * Destructs a parser object
@@ -47,9 +47,9 @@ public:
 
     /*!
      * Sets the verbosity of the program
-     * @param verbose true for more data
+     * @param verbose bitmask for verbosity
      */
-    void setVerbose(bool verbose);
+    void setVerbosity(int verbose);
 
     /*!
      * Call with new characters to get them parsed
@@ -142,7 +142,17 @@ private:
     string m_name;
 
     bool m_gui_running;
-    bool m_verbose;
+
+public:
+    enum VERBOSITY_LVL {
+        VERB_DEBUG  = (1 << 0),
+        VERB_TEXT   = (1 << 1),
+        VERB_LASER  = (1 << 2),
+        VERB_MAP    = (1 << 3),
+    };
+private:
+
+    int m_verbose;
     int m_delay_time;
 };
 

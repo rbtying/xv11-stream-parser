@@ -30,12 +30,15 @@ using namespace std;
 struct args_t {
     bool cli;           // true if -c is present
     bool verbose;       // true if -v is present
+    bool laser;         // true if -l is present
+    bool text;          // true if -t is present
+    bool map;           // true if -m is present
     char *filename;     // path to dump file (-f)
     char *serialport;   // path to serial port (-p)
     char *gifname;      // path to save gif (-g)
 } args;
 
-static const char *optstring = "cvf:p:g:h?";
+static const char *optstring = "cvltmf:p:g:h?";
 
 static const char *activation_cmd = "SetStreamFormat packet\r\n";
     
@@ -49,15 +52,18 @@ void displayUsage() {
     cout << "Released under the GPLv3" << endl;
     cout << endl;
     cout << "Usage:" << endl;
-    cout << "\tparser [-cv] -f dumpfile [-g gifname]" << endl;
-    cout << "\tparser [-cv] -p serialport [-g gifname]" << endl;
+    cout << "\tparser [-cvltm] -f dumpfile [-g gifname]" << endl;
+    cout << "\tparser [-cvltm] -p serialport [-g gifname]" << endl;
     cout << endl;
     cout << "Options:" << endl;
     cout << "\t-c\t\tCLI Mode; all output printed to stdout" << endl;
+    cout << "\t-v\t\tVerbose; more data is printed to stdout" << endl;
+    cout << "\t-l\t\tLaser messages printed to stdout" << endl;
+    cout << "\t-t\t\tText messages printed to stdout" << endl;
+    cout << "\t-m\t\tMap messages printed to stdout" << endl;
     cout << "\t-f\t\tPath to serial dump file" << endl;
     cout << "\t-p\t\tSerial device name" << endl;
     cout << "\t-g\t\tPath to save gif to" << endl;
-    cout << "\t-v\t\tVerbose; more data is printed to stdout" << endl;
     cout << "\t-h\t\tDisplay usage" << endl;
     cout << endl;
 }
@@ -71,6 +77,9 @@ int main (int argc, char** argv) {
     args.filename = NULL;
     args.serialport = NULL;
     args.gifname = NULL;
+    args.laser = false;
+    args.text = false;
+    args.map = false;
     args.verbose = false;
 
     char c;
@@ -81,6 +90,18 @@ int main (int argc, char** argv) {
             case 'c':
                 args.cli = true;
                 break;
+            case 'v':
+                args.verbose = true;
+                break;
+            case 'l':
+                args.laser = true;
+                break;
+            case 't':
+                args.text = true;
+                break;
+            case 'm':
+                args.map = true;
+                break;
             case 'f':
                 args.filename = optarg;
                 break;
@@ -89,9 +110,6 @@ int main (int argc, char** argv) {
                 break;
             case 'g':
                 args.gifname = optarg;
-                break;
-            case 'v':
-                args.verbose = true;
                 break;
             case 'h':
             case '?':
@@ -112,7 +130,13 @@ int main (int argc, char** argv) {
     }
 
     p.setGui(!args.cli);
-    p.setVerbose(args.verbose);
+
+    int verbosity = 0;
+    verbosity |= (args.verbose ? parser::VERB_DEBUG : 0)
+        | (args.laser ? parser::VERB_LASER : 0)
+        | (args.text ? parser::VERB_TEXT : 0)
+        | (args.map ? parser::VERB_MAP : 0);
+    p.setVerbosity(verbosity);
 
     if (args.cli) {
         cout << "Running in command line mode" << endl;

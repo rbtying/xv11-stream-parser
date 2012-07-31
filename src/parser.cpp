@@ -31,10 +31,10 @@ using namespace cv;
 const static unsigned char HEADER[] = { 0x01, 0x02, 0x03, 0x04 };
 const static unsigned char FOOTER[] = { 0x40, 0x30, 0x20, 0x10 };
 
-parser::parser(const char *name, bool gui, bool verbose, int delayTime) : m_name(name) {
+parser::parser(const char *name, bool gui, int delayTime) : m_name(name) {
     m_gui_running = gui;
     m_delay_time = delayTime;
-    m_verbose = verbose;
+    m_verbose = 0;
     if (m_gui_running) {
         namedWindow(name, CV_WINDOW_AUTOSIZE);
     }
@@ -50,7 +50,7 @@ void parser::setGui(bool gui) {
     m_gui_running = gui;
 }
 
-void parser::setVerbose(bool verbose) {
+void parser::setVerbosity(int verbose) {
     m_verbose = verbose;
 }
 
@@ -108,13 +108,13 @@ int parser::construct_int(int pos) {
 
 void parser::processMsg() {
     // verify header
-    if (!is_header(3) && m_verbose) {
+    if (!is_header(3) && (m_verbose & VERB_DEBUG)) {
         cerr << "ERRROR: Header does not match" << endl;
         return;
     }
 
     // verify footer
-    if (!is_footer(m_buf.size() - 1) && m_verbose) {
+    if (!is_footer(m_buf.size() - 1) && (m_verbose & VERB_DEBUG)) {
         cerr << "ERROR: Footer does not match" << endl;
         return;
     }
@@ -124,15 +124,10 @@ void parser::processMsg() {
     int seq = construct_int(SEQUENCE);
     int type = construct_int(TYPE);
     
-    switch(type) {
-        case TEXT:
-        case LASER:
-        case MAP:
-            if (m_verbose) {
-                cout << seq << " (" << timestamp << "):\ttype: " << type << "\t";
-            }
-            break;
+    if (m_verbose & VERB_DEBUG) {
+        cout << seq << " (" << timestamp << "):\ttype: " << type << "\t";
     }
+
     switch(type) {
         case TEXT:
             processText();
@@ -147,13 +142,17 @@ void parser::processMsg() {
             /* cout << endl; */
             break;
     }
+
+    if (m_verbose & VERB_DEBUG) {
+        cout << endl;
+    }
 }
 
 void parser::processText() {
     long string_length = construct_long(STR_LEN);
     unsigned char *text_buf = new unsigned char[string_length + 1];
 
-    if (m_verbose) {
+    if (m_verbose & (VERB_TEXT | VERB_DEBUG)) {
         cout << "(text, " << string_length << " bytes): ";
     }
 
@@ -162,7 +161,12 @@ void parser::processText() {
     }
     text_buf[string_length] = '\0';
 
-    cout << text_buf << endl;
+    if (m_verbose & VERB_TEXT) {
+        cout << text_buf;
+        if (text_buf[string_length - 1] != '\n') {
+            cout << endl;
+        }
+    }
 
     delete[] text_buf;
 }
@@ -175,6 +179,10 @@ void parser::processMap() {
     // edit data with new input
     long size = construct_long(MAP_SIZE);
     long address = construct_long(MAP_ADDR);
+
+    if (m_verbose & VERB_MAP || m_verbose & VERB_DEBUG) {
+        cout << "\t(map, " << size << " bytes at 0x" << hex <<  address << dec << ")" << endl;
+    }
 
     copy(m_buf.begin() + MAP_DATA, m_buf.begin() + MAP_DATA + size, m_img + address);
 
@@ -201,7 +209,7 @@ void parser::writeMap(const char *filename) {
 void parser::processLaser() {
     long index = construct_long(LSR_INDEX);
     
-    if (m_verbose) {
+    if (m_verbose & VERB_LASER) {
         cout << "(laser, " << index << " deg): " ;
     }
 
@@ -209,12 +217,16 @@ void parser::processLaser() {
         double x = construct_int(LSR_DATA + 4 * i);
         double y = construct_int(LSR_DATA + 4 * i + 2);
         double dist = sqrt(x * x + y * y);
-        if (m_verbose) {
-            cout << dist << ", ";
+        if (m_verbose & VERB_LASER) {
+            if (m_verbose & VERB_DEBUG) {
+                cout << "(" << x << ", " << y << ", " << dist << ")" << endl;
+            } else {
+                cout << dist << ", ";
+            }
         }
     }
     
-    if (m_verbose) {
+    if (m_verbose & VERB_LASER) {
         cout << endl;
     }
 }
