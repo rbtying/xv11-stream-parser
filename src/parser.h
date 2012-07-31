@@ -61,10 +61,16 @@ public:
     void update(char c);
 
     /*!
-     * Writes a PGM-formatted map
+     * Writes a gif map animation
      * @param filename the file to be written
      */
     void writeMap(const char *filename);
+
+    /*!
+     * Writes a gif laser animation
+     * @param filename the file to be written
+     */
+    void writeAnim(const char *filename);
 
 /* private functions */
 private:
@@ -178,6 +184,7 @@ private:
 
     char m_img[65536];
     vector<Image> m_images;
+    vector<Image> m_laser_images;
     vector<unsigned char> m_buf;
     string m_name;
 

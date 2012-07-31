@@ -37,9 +37,10 @@ struct args_t {
     char *filename;     // path to dump file (-f)
     char *serialport;   // path to serial port (-p)
     char *gifname;      // path to save gif (-g)
+    char *lasergifname; // path to save laser gif (-a)
 } args;
 
-static const char *optstring = "cvltmof:p:g:h?";
+static const char *optstring = "cvltmof:p:g:a:h?";
 
 static const char *activation_cmd = "SetStreamFormat packet\r\n";
     
@@ -53,8 +54,8 @@ void displayUsage() {
     cout << "Released under the GPLv3" << endl;
     cout << endl;
     cout << "Usage:" << endl;
-    cout << "\tparser [-cvltm] -f dumpfile [-g gifname]" << endl;
-    cout << "\tparser [-cvltm] -p serialport [-g gifname]" << endl;
+    cout << "\tparser [-cvltm] -f dumpfile [-g gifname] [-a lasergifname]" << endl;
+    cout << "\tparser [-cvltm] -p serialport [-g gifname] [-a lasergifname]" << endl;
     cout << endl;
     cout << "Options:" << endl;
     cout << "\t-c\t\tCLI Mode; all output printed to stdout" << endl;
@@ -66,6 +67,7 @@ void displayUsage() {
     cout << "\t-f\t\tPath to serial dump file" << endl;
     cout << "\t-p\t\tSerial device name" << endl;
     cout << "\t-g\t\tPath to save gif to" << endl;
+    cout << "\t-a\t\tPath to save laser gif to" << endl;
     cout << "\t-h\t\tDisplay usage" << endl;
     cout << endl;
 }
@@ -76,14 +78,15 @@ void term(int signum) {
 
 int main (int argc, char** argv) {
     args.cli = false;
-    args.filename = NULL;
-    args.serialport = NULL;
-    args.gifname = NULL;
     args.laser = false;
     args.text = false;
     args.map = false;
     args.odom = false;
     args.verbose = false;
+    args.filename = NULL;
+    args.serialport = NULL;
+    args.lasergifname = NULL;
+    args.gifname = NULL;
 
     char c;
 
@@ -116,6 +119,9 @@ int main (int argc, char** argv) {
                 break;
             case 'g':
                 args.gifname = optarg;
+                break;
+            case 'a':
+                args.lasergifname = optarg;
                 break;
             case 'h':
             case '?':
@@ -224,7 +230,12 @@ int main (int argc, char** argv) {
     }
 
     if (args.gifname) {
-        cout << "Writing gif to " << args.gifname << endl;
+        cout << "Writing map gif to " << args.gifname << endl;
         p.writeMap(args.gifname);
+    }
+
+    if (args.lasergifname) {
+        cout << "Writing laser gif to " << args.lasergifname << endl;
+        p.writeAnim(args.lasergifname);
     }
 }

@@ -273,6 +273,10 @@ void parser::writeMap(const char *filename) {
     Magick::writeImages(m_images.begin(), m_images.end(), filename); 
 }
 
+void parser::writeAnim(const char *filename) {
+    Magick::writeImages(m_laser_images.begin(), m_laser_images.end(), filename); 
+}
+
 void parser::processLaser() {
     long index = construct_long(LSR_INDEX);
     
@@ -371,6 +375,11 @@ void parser::processLaser() {
                 }
             }
         }
+
+        Image temp(img.cols, img.rows, "BGR", CharPixel, reinterpret_cast<char*>(img.data));
+        temp.animationDelay(1);
+    
+        m_laser_images.push_back(temp);
 
         if (m_gui_running) {
             imshow("Laser", img);
