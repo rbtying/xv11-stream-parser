@@ -159,11 +159,11 @@ void parser::processMsg() {
 
     // sequence number (increment by one per message)
     unsigned long timestamp = construct_long(TIMESTAMP);
-    unsigned int seq = construct_int(SEQUENCE);
+    uint16_t seq = construct_int(SEQUENCE);
     int type = construct_int(TYPE);
     
     if (m_verbose & VERB_DEBUG) {
-        cout << seq << " (" << timestamp << ")\ttype: " << type << "\t\t";
+        cout << seq << " (" << timestamp << ")\ttype: " << hex << "0x" << type << dec << "\t\t";
     }
 
     switch(type) {
@@ -190,28 +190,25 @@ void parser::processMsg() {
 }
 
 void parser::processOdom() {
-    if (m_verbose & (VERB_ODOM)) {
+    if (m_verbose & (VERB_ODOM | VERB_DEBUG)) {
         cout << "(odom, " << (m_buf.size() - 0x0c - 4) << " bytes)\t";
-        // for (int i = 0; i < m_buf.size() - 0x0c - 4; i++) {
-        //     cout << "0x" << hex << static_cast<int>(m_buf[0x0c + i]) << dec << ", ";
-        // }
-        // cout << endl;
-        // odom_data pleft, pright;
-        // pleft.count = left.count;
-        // pleft.speed = left.speed;
-        // pright.count = right.count;
-        // pright.speed = right.speed;
-        // 
-        left.count = construct_long(0x0c); // maybe encoder counts?
-        right.count = construct_long(0x10); // maybe encoder counts?
-        long noclue = construct_long(0x18); // constant at 32000 no clue what this is
-        left.speed = construct_int(0x14) * 0.001; // maybe encoder count rate?
-        right.speed = construct_int(0x16) * 0.001; // maybe encoder count rate?
-        cout << left.count << "\t" << right.count << "\t" << m_center.x << "\t" << m_center.y;
-        // /* cout << ldata[0] << "\t" << ldata[1] << "\t" << idata[0] << "\t" << idata[1] << "\t" << ldata[2]; */
+        
+        if (m_verbose & VERB_ODOM) {
+            // for (int i = 0; i < m_buf.size() - 0x0c - 4; i++) {
+            //     cout << "0x" << hex << static_cast<int>(m_buf[0x0c + i]) << dec << ", ";
+            // }
+            // cout << endl;
 
-        // cout << left.count - pleft.count << "\t" << left.speed << "\t" << right.count - pright.count << "\t" << right.speed;
-        cout << endl;
+            left.count = construct_long(0x0c); // maybe encoder counts?
+            right.count = construct_long(0x10); // maybe encoder counts?
+            long noclue = construct_long(0x18); // constant at 32000 no clue what this is
+            left.speed = construct_int(0x14) * 0.001; // maybe encoder count rate?
+            right.speed = construct_int(0x16) * 0.001; // maybe encoder count rate?
+            cout << left.count * 0.001 << "\t" << right.count * 0.001 << "\t" << m_center.x << "\t" << m_center.y;
+            if (!(m_verbose & VERB_DEBUG)) {
+                cout << endl;
+            }
+        }
     }
 }
 
@@ -220,7 +217,7 @@ void parser::processText() {
     unsigned char *text_buf = new unsigned char[string_length + 1];
 
     if (m_verbose & (VERB_TEXT | VERB_DEBUG)) {
-        cout << "(text, " << string_length << " bytes): ";
+        cout << "(text, " << string_length << " bytes) ";
     }
 
     for (int i = 0; i < string_length; i++) {
@@ -248,7 +245,10 @@ void parser::processMap() {
     long address = construct_long(MAP_ADDR);
 
     if (m_verbose & (VERB_MAP | VERB_DEBUG)) {
-        cout << "(map, " << size << " bytes at 0x" << hex <<  address << dec << ")" << endl;
+        cout << "(map, " << size << " bytes at 0x" << hex <<  address << dec << ")";
+        if (!(m_verbose & VERB_DEBUG)) {
+            cout << endl;
+        }
     }
 
     copy(m_buf.begin() + MAP_DATA, m_buf.begin() + MAP_DATA + size, m_img + address);
