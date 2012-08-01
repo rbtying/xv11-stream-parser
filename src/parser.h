@@ -197,6 +197,8 @@ private:
 
     struct laser_unit m_laser[360];
 
+    Point m_center;
+
     struct odom_data {
         double count;
         double speed;

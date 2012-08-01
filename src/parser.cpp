@@ -202,12 +202,12 @@ void parser::processOdom() {
         // pright.count = right.count;
         // pright.speed = right.speed;
         // 
-        // left.count = construct_long(0x0c); // maybe encoder counts?
-        // right.count = construct_long(0x10); // maybe encoder counts?
-        // long noclue = construct_long(0x18); // constant at 32000 no clue what this is
-        // left.speed = construct_int(0x14) * 0.001; // maybe encoder count rate?
-        // right.speed = construct_int(0x16) * 0.001; // maybe encoder count rate?
-
+        left.count = construct_long(0x0c); // maybe encoder counts?
+        right.count = construct_long(0x10); // maybe encoder counts?
+        long noclue = construct_long(0x18); // constant at 32000 no clue what this is
+        left.speed = construct_int(0x14) * 0.001; // maybe encoder count rate?
+        right.speed = construct_int(0x16) * 0.001; // maybe encoder count rate?
+        cout << left.count << "\t" << right.count << "\t" << m_center.x << "\t" << m_center.y;
         // /* cout << ldata[0] << "\t" << ldata[1] << "\t" << idata[0] << "\t" << idata[1] << "\t" << ldata[2]; */
 
         // cout << left.count - pleft.count << "\t" << left.speed << "\t" << right.count - pright.count << "\t" << right.speed;
@@ -288,7 +288,7 @@ void parser::processLaser() {
         laser_unit *u = &m_laser[index + i];
         u->pt.x = construct_int(LSR_DATA + 4 * i);
         u->pt.y = construct_int(LSR_DATA + 4 * i + 2);
-        u->valid = abs(u->pt.x) < 32767 && abs(u->pt.y) < 32767;
+        u->valid = abs(u->pt.x) < 512 && abs(u->pt.y) < 512;
         if (m_verbose & VERB_LASER) {
             if (m_verbose & VERB_DEBUG) {
                 if (u->valid) {
@@ -354,24 +354,34 @@ void parser::processLaser() {
 
         // average the various intersections
         Point center;
+        int points = 0;
         if (intersections.size()) {
             for (unsigned int i = 0; i < intersections.size(); i++) {
-                center.x += intersections[i].x;
-                center.y += intersections[i].y;
-            }
-            center.x /= intersections.size();
-            center.y /= intersections.size();
-            
-            // this is rather suboptimal =(
-            if (m_verbose & VERB_LASER) {
-                cout << "Intersection: " << center;
+                if (inBounds(img, intersections[i].x, intersections[i].y)) {
+                    center.x += intersections[i].x;
+                    center.y += intersections[i].y;
+                    ++points;
+                }
             }
 
-            for (int j = -5; j <= 5; j++) {
-                for (int k = -5; k <= 5; k++) {
-                    if (inBounds(img, center.x + j, center.y + k)) {
-                        img.at<Vec3b>(center.y + k, center.x + j)[0] = 0xff;
+            if (points) {
+                center.x /= points;
+                center.y /= points;
+                
+                // this is rather suboptimal =(
+                if (m_verbose & VERB_LASER) {
+                    cout << "Intersection: " << center;
+                }
+
+                for (int j = -5; j <= 5; j++) {
+                    for (int k = -5; k <= 5; k++) {
+                        if (inBounds(img, center.x + j, center.y + k)) {
+                            img.at<Vec3b>(center.y + k, center.x + j)[0] = 0xff;
+                        }
                     }
+                }
+                if (inBounds(img, center.x, center.y)) {
+                    m_center = center;
                 }
             }
         }
